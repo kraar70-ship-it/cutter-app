@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق مولد أرقام التخصيص (المكتبة المركزية)</title>
+    <style>
+        :root { 
+            --primary: #1b4d3e; 
+            --secondary: #c59b27; 
+            --bg: #f8f9fa; 
+            --card-bg: #ffffff;
+        }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: var(--bg); 
+            margin: 0; 
+            padding: 20px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            min-height: 90vh;
+        }
+        .container { 
+            background: var(--card-bg); 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+            width: 100%; 
+            max-width: 650px; 
+        }
+        h2 { 
+            color: var(--primary); 
+            text-align: center; 
+            margin-bottom: 5px; 
+        }
+        .subtitle { 
+            text-align: center; 
+            color: #666; 
+            font-size: 14px; 
+            margin-bottom: 25px; 
+        }
+        .form-group { 
+            margin-bottom: 20px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: bold; 
+            color: #333; 
+        }
+        input, select { 
+            width: 100%; 
+            padding: 12px; 
+            font-size: 16px; 
+            border: 2px solid #ddd; 
+            border-radius: 8px; 
+            box-sizing: border-box; 
+            outline: none; 
+            transition: 0.3s; 
+        }
+        input:focus, select:focus { 
+            border-color: var(--primary); 
+        }
+        .result-box { 
+            background: #f1f8f5; 
+            border: 2px dashed var(--primary); 
+            padding: 20px; 
+            border-radius: 8px; 
+            text-align: center; 
+            margin-top: 20px; 
+        }
+        .result-title {
+            font-size: 14px;
+            color: #555;
+        }
+        .result-code { 
+            font-size: 36px; 
+            font-weight: bold; 
+            color: var(--primary); 
+            margin-top: 5px; 
+            letter-spacing: 1px; 
+            direction: ltr;
+            display: inline-block;
+        }
+        .notes { 
+            font-size: 13px; 
+            color: #555; 
+            margin-top: 20px; 
+            background: #fff8e1; 
+            padding: 12px; 
+            border-radius: 6px; 
+            border-right: 4px solid var(--secondary); 
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>مولد أرقام التخصيص (رقم المؤلف)</h2>
+    <div class="subtitle">استناداً إلى قواعد المكتبة المركزية وجدول كتر-سانبورن الموحد</div>
+
+    <div class="form-group">
+        <label for="mode">طريقة المعالجة (حسب لغة الكتاب / المدخل):</label>
+        <select id="mode" onchange="toggleMode()">
+            <option value="arabic">نص عربي / مؤلف أجنبي معرب (جدول الحروف العربية)</option>
+            <option value="foreign">نص أجنبي / مؤلف عربي باللاتينية (Cutter-Sanborn Table)</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label id="inputLabel" for="authorInput">اسم المؤلف أو الشهرة (باللغة العربية):</label>
+        <input type="text" id="authorInput" placeholder="مثال: المتنبي، دونالد (مترجم)، جامعة بغداد..." oninput="calculateCutter()">
+    </div>
+
+    <div class="form-group">
+        <label for="workMark">علامة العمل (Work Mark - اختياري):</label>
+        <input type="text" id="workMark" placeholder="حرف صغير من بداية عنوان الكتاب (مثل: h, w)..." oninput="calculateCutter()" maxlength="3">
+    </div>
+
+    <div class="result-box">
+        <div class="result-title">رقم التخصيص النهائي:</div>
+        <div class="result-code" id="output">---</div>
+    </div>
+
+    <div class="notes" id="instructionNote">
+        📌 <strong>قاعدة عربية:</strong> إهمال "ال" التعريف، وأخذ أرقام الحروف الثلاثة الأولى بعد حرف الشهرة الأول وفق جدول الترميز الموحد.
+    </div>
+</div>
+
+<script>
+// جدول الأحرف العربية الموحد للمكتبات
+const arabicCharMap = {
+    'ب': 2, 'ر': 2, 'ع': 2, 'أ': 2, 'إ': 2, 'آ': 2, 'ى': 2, 'ا': 2,
+    'ت': 3, 'ز': 3, 'غ': 3, 'ؤ': 3, 'و': 3,
+    'ث': 4, 'س': 4, 'ف': 4, 'ئ': 4, 'ي': 4,
+    'ج': 5, 'ش': 5, 'ق': 5, 'م': 5,
+    'ح': 6, 'ص': 6, 'ك': 6, 'پ': 6,
+    'خ': 7, 'ض': 7, 'ل': 7, 'ڤ': 7,
+    'د': 8, 'ط': 8, 'ن': 8, 'گ': 8,
+    'ذ': 9, 'ظ': 9, 'ه': 9, 'هـ': 9, 'چ': 9,
+    'ة': 3
+};
+
+// عينة جداول كتر-سانبورن الأجنبية
+const cutterSanbornDatabase = [
+    { prefix: "ARNOLD", code: "A757" },
+    { prefix: "BALZAC", code: "B525" },
+    { prefix: "COLBY", code: "C686" },
+    { prefix: "DICKENS", code: "D548" },
+    { prefix: "GOETHE", code: "G599" },
+    { prefix: "KIMBALL", code: "K49" },
+    { prefix: "LEWIS", code: "L676" },
+    { prefix: "LINCOLN", code: "L736" },
+    { prefix: "LOW", code: "L912" },
+    { prefix: "LOWE", code: "L913" },
+    { prefix: "LOWELL", code: "L914" },
+    { prefix: "MAUGHAM", code: "M449" },
+    { prefix: "SCOTT", code: "S425" },
+    { prefix: "SHAKESPEARE", code: "S527" },
+    { prefix: "STODDARD", code: "S869" },
+    { prefix: "STORY", code: "S888" },
+    { prefix: "WASHINGTON", code: "W318" }
+];
+
+function toggleMode() {
+    let mode = document.getElementById("mode").value;
+    let label = document.getElementById("inputLabel");
+    let note = document.getElementById("instructionNote");
+    
+    if (mode === 'arabic') {
+        label.innerText = "اسم المؤلف أو الشهرة (باللغة العربية):";
+        document.getElementById("authorInput").placeholder = "مثال: المتنبي، دونالد (مترجم)، جامعة بغداد...";
+        note.innerHTML = "📌 <strong>قاعدة عربية:</strong> إهمال 'ال' التعريف واستخراج الأرقام من جدول الترميز الموحد (تشمل المؤلف الأجنبي المعرب).";
+    } else {
+        label.innerText = "اسم الشهرة (باللغة الإنجليزية / رومنة الاسم):";
+        document.getElementById("authorInput").placeholder = "مثال: Murad (نزار مراد), Shakespeare...";
+        note.innerHTML = "📌 <strong>قاعدة أجنبية:</strong> استخراج الرمز من جدول كتر-سانبورن (تشمل المؤلف العربي المكتوب كتابه بالإنجليزية).";
+    }
+    calculateCutter();
+}
+
+function cleanArabicText(text) {
+    text = text.trim();
+    if (text.startsWith("ال") && text !== "الله" && text !== "البرت" && text !== "الياشين") {
+        text = text.substring(2);
+    }
+    return text;
+}
+
+function calculateArabicCutter(input) {
+    if (!input) return "---";
+    let parts = input.trim().split(" ");
+    let firstWord = parts[0];
+    let secondWord = parts[1] ? cleanArabicText(parts[1]) : "";
+    let firstChar = "";
+    let numbers = "";
+
+    if (firstWord === "ابن" ||
